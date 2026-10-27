@@ -45,36 +45,57 @@ export interface ProfileFull {
   learn: string[];
 }
 
-// ---------- Pool MySQL (opcional) ----------
+
+ // ---------- Pool MySQL (opcional) ----------
 export let pool: mysql.Pool | null = null;
 export let useMySQL = false;
 
 export async function initDb(): Promise<void> {
   try {
+    const sslCA = process.env.DB_SSL_CA;
+
     pool = mysql.createPool({
       host: config.db.host,
       port: config.db.port,
       database: config.db.database,
       user: config.db.user,
       password: config.db.password,
+
+      // SSL para Aiven. En XAMPP local no se utiliza.
+      ssl: sslCA
+        ? {
+            ca: sslCA.replace(/\\n/g, '\n'),
+            rejectUnauthorized: true,
+          }
+        : undefined,
+
       waitForConnections: true,
       connectionLimit: 5,
-      connectTimeout: 3000,
+      connectTimeout: 10000,
     });
+
     const conn = await pool.getConnection();
     await conn.ping();
     conn.release();
+
     useMySQL = true;
     console.log('[db] Conectado a MySQL');
   } catch (err) {
-    console.warn('[db] MySQL no disponible, usando almacenamiento en memoria para el prototipo.');
-    console.warn('[db] Detalle:', (err as Error).message);
-    console.warn('[db] Para usar MySQL: crea la BD con database/schema.sql y configura backend/.env');
+    console.error('[db] Error de conexion MySQL:', (err as Error).message);
+
     pool = null;
     useMySQL = false;
+
+    // Solo permitir almacenamiento temporal en desarrollo.
+    if (process.env.NODE_ENV === 'production') {
+      throw new Error('No se pudo conectar a MySQL en produccion');
+    }
+
+    console.warn('[db] Usando almacenamiento en memoria local.');
     seedMemory();
   }
 }
+
 
 // ============================================================
 // Almacenamiento en memoria (fallback del prototipo)

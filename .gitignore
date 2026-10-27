@@ -15,3 +15,10 @@ build/
 Thumbs.db
 
 .vscode/
+
+# Configuracion privada de Aiven
+backend/.env.aiven
+backend/aiven-ca.pem
+
+# Respaldo local de la base de datos
+database/aprendly_2_0.sql
